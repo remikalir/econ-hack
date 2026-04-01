@@ -2034,15 +2034,34 @@ function switchToTab(tabId) {
   tabPanels.forEach(panel => {
     panel.classList.toggle('active', panel.id === 'tab-' + tabId);
   });
-  // Lazy init charts
+  // Lazy init charts - use longer delay so browser can layout the now-visible panel
   if (!initialized[tabId]) {
     initialized[tabId] = true;
     if (typeof window['init_' + tabId] === 'function') {
-      setTimeout(() => window['init_' + tabId](), 50);
+      setTimeout(() => {
+        window['init_' + tabId]();
+        // After init, resize all Chart.js instances in this panel
+        resizeChartsInTab(tabId);
+      }, 150);
     }
+  } else {
+    // Already initialized - just resize in case of layout shift
+    setTimeout(() => resizeChartsInTab(tabId), 50);
   }
   // Scroll to top of content
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resizeChartsInTab(tabId) {
+  const panel = document.getElementById('tab-' + tabId);
+  if (!panel) return;
+  const canvases = panel.querySelectorAll('canvas');
+  canvases.forEach(canvas => {
+    const chart = Chart.getChart(canvas);
+    if (chart) {
+      chart.resize();
+    }
+  });
 }
 
 tabBtns.forEach(btn => {
@@ -2081,10 +2100,10 @@ function premClass(n) { return n == null ? '' : n >= 0 ? 'pos' : 'neg'; }
 
 // ===== TAB SWITCHING =====
 function switchTab(group, id) {
-  document.querySelectorAll(`#${group}-1yr, #${group}-5yr`).forEach(el => el.classList.remove('active'));
-  document.getElementById(`${group}-${id}`).classList.add('active');
-  const tabs = document.getElementById(`${group}-${id}`).previousElementSibling;
-  let container = document.getElementById(`${group}-${id}`).parentElement;
+  document.querySelectorAll(`#p1-${group}-1yr, #p1-${group}-5yr`).forEach(el => el.classList.remove('active'));
+  document.getElementById(`p1-${group}-${id}`).classList.add('active');
+  const tabs = document.getElementById(`p1-${group}-${id}`).previousElementSibling;
+  let container = document.getElementById(`p1-${group}-${id}`).parentElement;
   container.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   container.querySelectorAll('.tab').forEach(t => { if(t.textContent.toLowerCase().includes(id.replace('yr',''))) t.classList.add('active'); });
 }
@@ -2109,8 +2128,8 @@ function buildTable1(tableId, yearKey) {
   html += '</tbody>';
   table.innerHTML = html;
 }
-buildTable1('table1-1yr', '1yr');
-buildTable1('table1-5yr', '5yr');
+buildTable1('p1-table1-1yr', '1yr');
+buildTable1('p1-table1-5yr', '5yr');
 
 // ===== PREMIUM BAR CHARTS =====
 function buildPremiumChart(canvasId, yearKey, title) {
@@ -2133,8 +2152,8 @@ function buildPremiumChart(canvasId, yearKey, title) {
     }
   });
 }
-buildPremiumChart('chart-premium-1yr', '1yr', '1 Year After Completion');
-buildPremiumChart('chart-premium-5yr', '5yr', '5 Years After Completion');
+buildPremiumChart('p1-chart-premium-1yr', '1yr', '1 Year After Completion');
+buildPremiumChart('p1-chart-premium-5yr', '5yr', '5 Years After Completion');
 
 // ===== COMPARISON TABLE =====
 function buildComparisonTable() {
@@ -2447,7 +2466,7 @@ function cls(n){return n==null?'':n>=0?'pos':'neg'}
 // ===== GENDER =====
 function switchGenderTab(h){
   document.querySelectorAll('#gender-1yr,#gender-5yr').forEach(e=>e.classList.remove('active'));
-  document.getElementById('gender-'+h).classList.add('active');
+  document.getElementById('p3-gender-'+h).classList.add('active');
   document.querySelectorAll('#gender-1yr,#gender-5yr').forEach(e=>{
     const parent=e.parentElement;
     parent.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
@@ -2460,7 +2479,7 @@ function switchGenderTab(h){
 function buildGenderTable(h){
   const horizon=h==='1yr'?1:5;
   const rows=D.gender_compare.filter(r=>r.wages_after===horizon).sort((a,b)=>b.gap-a.gap);
-  const tbl=document.getElementById('tbl-gender-'+h);
+  const tbl=document.getElementById('p3-tbl-gender-'+h);
   let html='<thead><tr><th>Field</th><th class="num">Female Δ</th><th class="num">Male Δ</th><th class="num">F−M Gap</th><th class="num">Female N</th><th class="num">Male N</th></tr></thead><tbody>';
   for(const r of rows){
     html+=`<tr><td>${r.field}</td><td class="num">${fmtL(r.female_premium)}</td><td class="num">${fmtL(r.male_premium)}</td><td class="num ${cls(r.gap)}">${fmtL(r.gap)}</td><td class="num">${r.female_n}</td><td class="num">${r.male_n}</td></tr>`;
@@ -2487,14 +2506,14 @@ new Chart(document.getElementById('p3-chart-gender'),{
 // ===== RACE =====
 function switchRaceTab(h){
   document.querySelectorAll('#race-1yr,#race-5yr').forEach(e=>e.classList.remove('active'));
-  document.getElementById('race-'+h).classList.add('active');
+  document.getElementById('p3-race-'+h).classList.add('active');
   buildRaceTable(h);
 }
 
 function buildRaceTable(h){
   const horizon=h==='1yr'?1:5;
   const rows=D.race_compare.filter(r=>r.wages_after===horizon);
-  const tbl=document.getElementById('tbl-race-'+h);
+  const tbl=document.getElementById('p3-tbl-race-'+h);
   let html='<thead><tr><th>Field</th><th class="num">White</th><th class="num">Black</th><th class="num">Asian</th><th class="num">Hispanic</th></tr></thead><tbody>';
   for(const r of rows){
     html+=`<tr><td>${r.field}</td><td class="num">${fmtL(r.white_premium)}</td><td class="num">${fmtL(r.black_premium)}</td><td class="num">${fmtL(r.asian_premium)}</td><td class="num">${fmtL(r.hispanic_premium)}</td></tr>`;
@@ -2540,7 +2559,7 @@ iSel.value='52';
 
 function switchInstTab(h){
   document.querySelectorAll('#inst-1yr,#inst-5yr').forEach(e=>e.classList.remove('active'));
-  document.getElementById('inst-'+h).classList.add('active');
+  document.getElementById('p3-inst-'+h).classList.add('active');
   updateInstChart();
 }
 
@@ -2550,14 +2569,14 @@ function updateInstChart(){
   for(const h of ['1yr','5yr']){
     const horizon=h==='1yr'?1:5;
     const rows=D.institution.filter(r=>r.cip===cip&&r.wages_after===horizon).sort((a,b)=>b.log_premium-a.log_premium);
-    const tbl=document.getElementById('tbl-inst-'+h);
+    const tbl=document.getElementById('p3-tbl-inst-'+h);
     let html='<thead><tr><th>Institution</th><th class="num">BA Median</th><th class="num">MA+ Median</th><th class="num">Log Δ</th><th class="num">MA+ N</th></tr></thead><tbody>';
     for(const r of rows){
       html+=`<tr><td>${r.institution}</td><td class="num">${fmt(r.ba_wages)}</td><td class="num">${fmt(r.ma_wages)}</td><td class="num ${cls(r.log_premium)}">${fmtL(r.log_premium)}</td><td class="num">${r.ma_n}</td></tr>`;
     }
     html+='</tbody>';tbl.innerHTML=html;
     
-    const canvas=document.getElementById('chart-inst-'+h);
+    const canvas=document.getElementById('p3-chart-inst-'+h);
     const chart=h==='1yr'?instChart1:instChart5;
     if(chart)chart.destroy();
     const newChart=new Chart(canvas,{
